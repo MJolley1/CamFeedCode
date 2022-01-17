@@ -12,7 +12,6 @@ from s3cmd import session
 
 import cv2
 
-
 # ---------------------------------- READ ME ----------------------------------
 # This script is designed for a Windows OS and uploads data to a specified AWS S3 account.
 # There are a few inputs that you need to work on before starting the script, these are listed and highlighted below.
@@ -30,16 +29,14 @@ saveDest = 'C:\\Users\\LattePanda\\Documents\\Code'  # Where do you want to save
 
 #  Here, enter some of the site specifics...
 zz = 15  # Enter the number of minutes between capturing videos. Recommended minimum of 15 mins.
-siteName = 'trialpanda'  # Enter the name of the site the module is capturing from. Default is 'trial'. DO NOT
+siteName = 'stirlingmills'  # Enter the name of the site the module is capturing from. Default is 'trial'. DO NOT
 # INCLUDE ANY CAPITALS OR SPECIAL CHARACTERS OR IT WILL NOT WORK. keep it lowercase and simple
-fps = 20  # What FPS do you want to capture the videos? Minimum and default would be 20fps
 capture_duration = 30  # How long do you want to capture the videos for? Minimum advised is about 15-20s, default is 30
 # Do you want to be able to see the camera feed as it is recording? 'y' or 'n'
 CamFeed = 'n'
 
 #  Define the IP camera's IP address and RTSP port
 camAddress = "192.168.1.66:554"  # This default is for my PC. For a pi, set as default "169.254.240.100:554"
-
 # ---------------------------------- DO NOT EDIT THE NEXT LINES ----------------------------------
 # All of the following code updates given the user input from above. It will create a "Data" folder in your specified
 # area, as well as a backup data folder. All new data will automatically be placed into the Data folder, while any
@@ -124,27 +121,26 @@ while condition == 1:
         condition = 2
         os.chdir(bucketcreated)
 
+
 def ipcamera():
     global camAddress
     global bucketcreated
     global bucketpathway
     global saveDest
-    global fps
     global siteName
     global zz
     global CamFeed
-    global fps
     global capture_duration
     while True:
         os.chdir(saveDest)
         print('Starting ip camera')
         # Create a VideoCapture object
-        cap = cv2.VideoCapture("rtsp://" + "admin:password11@" + camAddress + "/channel2")  #  define where to find
+        cap = cv2.VideoCapture("rtsp://" + "admin:password11@" + camAddress + "/channel2")  # define where to find
         # the IP camera to begin capturing video
-        if cap.isOpened() == False:   # Check if camera opened successfully
+        if cap.isOpened() == False:  # Check if camera opened successfully
             print("Unable to read camera feed")
 
-# Redefine the time to get upto date stamps for each video
+        # Redefine the time to get upto date stamps for each video
         e = datetime.now()
         inityear2 = "%04d" % e.year
         initmonth2 = "%02d" % e.month
@@ -153,19 +149,32 @@ def ipcamera():
         initmins2 = "%02d" % e.minute
         initsecs = 0
 
-        time_string2 = inityear2 + initmonth2 + initdate2 + inithour2 + initmins2  # again, string it together
         tempname = "Temp" + siteName + '.avi'  # the name of our videos with be the site, the time, and in the
         # .avi format for videos
+        time_string2 = inityear2 + initmonth2 + initdate2 + inithour2 + initmins2  # again, string it together
+        f = datetime.now()
+        initsecs2 = "%02d" % f.second
+        bias = int(initsecs2) - initsecs  # Calculate the timing bias
+
+        filename = siteName + time_string2 + '.avi'
+        oldpath = os.path.join(saveDest, tempname)
+        if os.path.exists(oldpath):
+            print("Need to delete the temp video file...")
+            os.remove(oldpath)
+            print('Deleted temp file.')
+        else:
+            print("No temp file to delete, continuing.")
 
         # Default resolutions of the frame are obtained.The default resolutions are system dependent.
         # We convert the resolutions from float to integer.
         frame_width = int(cap.get(3))
         frame_height = int(cap.get(4))
 
+        fps = 20  # To change the fps you must also change the fps on the camera
+        print("Frames per second using video.get(cv2.CAP_PROP_FPS) : {0}".format(fps))
         # Define the codec and create VideoWriter object.The output is stored in 'filename.avi' file.
         out = cv2.VideoWriter(tempname, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), fps, (frame_width, frame_height))
         # here we redefine the videos from .avi to .mjpg
-
         start_time = time.time()
         while int(time.time() - start_time) < capture_duration:
             ret, frame = cap.read()
@@ -187,23 +196,17 @@ def ipcamera():
         # Closes all the frames
         cv2.destroyAllWindows()
 
-        f = datetime.now()
-        initsecs2 = "%02d" % f.second
-        bias = int(initsecs2) - initsecs  # Calculate the timing bias
-        print('IP camera Exiting')
-        filename = siteName + time_string2 + '.avi'
-        oldpath = os.path.join(saveDest, tempname)
-        print(oldpath, "is the oldpath")
         if os.path.exists(oldpath):
             print(oldpath, "name of old path")
             newfilename = os.path.join(bucketpathway, filename)
             print(newfilename, "newfile name")
             shutil.copy(oldpath, newfilename)
-            os.remove(tempname)
+            os.remove(oldpath)
         else:
             print("No temp video files to exchange, continuing.")
         time.sleep(zz * 60 - bias)  # Wait zz minutes before next capture minus bias
         # produced during the photo capture to prevent timing drift
+        print('IP camera Exiting')
 
 
 AWS_REGION = "eu-west-2"
@@ -254,7 +257,6 @@ def uploadall():  # Upload data to AWS
             print('Number of items in Data folder:', iter1)
             print('Number of items in backup folder:', iter2)
             sleep(2)
-
 
             # Upload new data to AWS servers
             if iter1 == 0:
@@ -332,23 +334,24 @@ def uploadall():  # Upload data to AWS
         if counter == 250:
             os.system("shutdown /r")
 
+
 # Find the next timestamp with a multiple of zz
-a = range(0 ,60, zz)
+a = range(0, 60, zz)
 z = int(initmins)
-takeClosest = lambda num ,collection:min(collection,key=lambda x:abs(x-num))
-startAt = takeClosest(z,a)+zz
+takeClosest = lambda num, collection: min(collection, key=lambda x: abs(x - num))
+startAt = takeClosest(z, a) + zz
 if startAt == 60:
     startAt = 0
 print('Start at:', startAt)
 
 if 1 <= startAt <= 55:
-    y = d.replace(minute=startAt, second =0, microsecond=0)
+    y = d.replace(minute=startAt, second=0, microsecond=0)
 else:
-    y = d.replace(hour=d.hour+1, minute=0, second=0, microsecond=0)
+    y = d.replace(hour=d.hour + 1, minute=0, second=0, microsecond=0)
 
-delta_t = y-d
-secs = delta_t.seconds+1
-print('time until execution:', secs) # Number of seconds until program executes
+delta_t = y - d
+secs = delta_t.seconds + 1
+print('time until execution:', secs)  # Number of seconds until program executes
 time.sleep(secs)
 
 # Created threads:
