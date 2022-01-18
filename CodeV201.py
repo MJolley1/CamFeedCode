@@ -343,11 +343,16 @@ startAt = takeClosest(z, a) + zz
 if startAt == 60:
     startAt = 0
 print('Start at:', startAt)
+hour = d.hour
 
 if 1 <= startAt <= 55:
     y = d.replace(minute=startAt, second=0, microsecond=0)
 else:
-    y = d.replace(hour=d.hour + 1, minute=0, second=0, microsecond=0)
+    if hour==23 :
+        y = d.replace(hour=d.hour -23, minute=0, second=0, microsecond=0)
+    else:
+        y = d.replace(hour=d.hour + 1, minute=0, second=0, microsecond=0)
+
 
 delta_t = y - d
 secs = delta_t.seconds + 1
